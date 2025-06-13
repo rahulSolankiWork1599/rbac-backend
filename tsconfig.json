@@ -3,6 +3,7 @@
     "baseUrl": "./src",
     "paths": {
       "@config/*": ["config/*"],
+      "@validators/*" : ["validators/*"],
       "@controllers/*": ["controllers/*"],
       "@routes/*": ["routes/*"],
       "@models/*": ["models/*"],
