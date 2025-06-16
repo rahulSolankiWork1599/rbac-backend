@@ -1,13 +1,21 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { User } from "@models/user.model";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { generateToken } from "@utils/jwt";
+import { sendResponse } from "@utils/response";
 
 export const registerUser = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+
+    const alreadyRegisteredUser = await User.findOne({ where: { email } });
+
+    if (alreadyRegisteredUser) {
+      return sendResponse(res, 400, {
+        success: false,
+        message: 'User already exists with this email.',
+      })
+    }
 
     // Hashing the password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -19,15 +27,20 @@ export const registerUser = async (req: Request, res: Response) => {
     });
 
     // Respond with success (omit password in response)
-    res.status(201).json({
-      message: "User registered successfully",
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-      },
-    });
+     return sendResponse(res, 201, {
+        success: true,
+        message: 'User registered successfully',
+        data: {
+            id: newUser.id,
+            email: newUser.email,
+        }
+      })
   } catch (error) {
-    res.status(500).json({ message: "Registration failed", error });
+     return sendResponse(res, 500, {
+      success: false,
+      message: "Something went wrong.",
+      errors: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
 
@@ -39,20 +52,38 @@ export const loginUser = async (req: Request, res: Response) => {
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid email or password" });
+      return sendResponse(res, 400, {
+        success: false,
+        message: "Invalid email or password",
+      });
     }
 
     // 2. Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid email or password" });
+      return sendResponse(res, 400, {
+        success: false,
+        message: "Invalid email or password",
+      });
     }
 
     // 3. Generate JWT
-    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, {
-      expiresIn: "1h",
+    const token = generateToken({ id: user.id, email: user.email });
+
+    return sendResponse(res, 200, {
+      success: true,
+      message: "Login successful",
+      data: {
+        id: user.id,
+        email: user.email,
+        token,
+      },
     });
   } catch (error) {
-    res.status(500).json({ message: "Registration failed", error });
+    return sendResponse(res, 500, {
+      success: false,
+      message: "Something went wrong.",
+      errors: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
