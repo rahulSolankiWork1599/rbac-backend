@@ -1,33 +1,25 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "@config/database";
-// import { Role } from "@models/role.model";
 
-export class User extends Model {}
+export class Role extends Model {}
 
-User.init(
+Role.init(
   {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    email: {
+    name: {
       type: DataTypes.STRING,
+      allowNull: false,
       unique: true,
-      allowNull: false,
-    },
-    password: {
-      type: DataTypes.STRING,
-      allowNull: false,
     },
   },
   {
     sequelize,
-    modelName: "User",
-    tableName: "users",
+    modelName: "Role",
+    tableName: "roles",
     timestamps: true,
   }
 );
-
-// // Association added directly
-// User.hasOne(Role);
