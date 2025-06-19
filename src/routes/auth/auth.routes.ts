@@ -14,4 +14,6 @@ router.post("/login", loginValidationRules, validate, loginUser);
 
 router.post("/register", registerValidationRules, validate, registerUser);
 
+router.post("/logout", registerValidationRules, validate, registerUser);
+
 export default router;
