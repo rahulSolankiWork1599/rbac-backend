@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { User } from "@models/user.model";
-import { generateToken, signRefreshToken } from "@utils/jwt";
+import {
+  generateToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from "@utils/jwt";
 import { sendResponse } from "@utils/response";
 import { RefreshToken } from "@models/refreshToken.model";
 
@@ -100,7 +104,66 @@ export const loginUser = async (req: Request, res: Response) => {
   }
 };
 
-export const logoutUser = async (req: Request, res: Response) => {
+export const refreshUserToken = async (req: Request, res: Response) => {
+  const refreshToken = req.cookies?.refreshToken;
+  if (!refreshToken) {
+    return sendResponse(res, 400, {
+      success: false,
+      message: "No token available",
+    });
+  }
+
   try {
-  } catch (error) {}
+    const decoded: any = verifyRefreshToken(refreshToken);
+
+    const stored = await RefreshToken.findOne({
+      where: { token: refreshToken },
+    });
+    if (!stored)
+      return res.status(403).json({ message: "Invalid refresh token" });
+
+    // Rotate token
+    await stored.destroy();
+    const newAccessToken = generateToken({ id: decoded.id });
+    const newRefreshToken = signRefreshToken({ id: decoded.id });
+
+    await RefreshToken.create({ userId: decoded.id, token: newRefreshToken });
+
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
+
+    res.json({ accessToken: newAccessToken });
+  } catch (err) {
+    return sendResponse(res, 400, {
+      success: false,
+      message: "Something went wrong.",
+      errors:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+export const logoutUser = async (req: Request, res: Response) => {
+  const refreshToken = req.cookies?.refreshToken;
+  if (!refreshToken) {
+    return sendResponse(res, 400, {
+      success: false,
+      message: "No token available",
+    });
+  }
+
+  try {
+    await RefreshToken.destroy({ where: { token: refreshToken } });
+    res.clearCookie("refreshToken");
+
+    return sendResponse(res, 200, {
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    return res.status(403).json({ message: "Refresh failed" });
+  }
 };
