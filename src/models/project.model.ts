@@ -1,38 +1,36 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "@config/database";
-import { Project } from "@models/project.model";
-// import { Role } from "@models/role.model";
+import { User } from "@models/user.model";
 
-export class User extends Model {}
+export class Project extends Model {}
 
-User.init(
+Project.init(
   {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    email: {
+    name: {
       type: DataTypes.STRING,
-      unique: true,
       allowNull: false,
     },
-    password: {
-      type: DataTypes.STRING,
-      allowNull: false,
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
   },
   {
     sequelize,
-    modelName: "User",
-    tableName: "users",
+    modelName: "Project",
+    tableName: "projects",
     timestamps: true,
   }
 );
 
 // Association added directly
-User.belongsToMany(Project, {
+Project.belongsToMany(User, {
   through: "user_projects",
-  foreignKey: "user_id",
-  otherKey: "project_id",
+  foreignKey: "project_id",
+  otherKey: "user_id",
 });
