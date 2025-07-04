@@ -29,10 +29,3 @@ User.init(
     timestamps: true,
   }
 );
-
-// Association added directly
-User.belongsToMany(Project, {
-  through: "user_projects",
-  foreignKey: "user_id",
-  otherKey: "project_id",
-});
