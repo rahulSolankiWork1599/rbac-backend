@@ -32,6 +32,9 @@ export const getUsersList = async (req: Request, res: Response) => {
       where,
       limit: limitNumber,
       offset,
+      attributes: {
+        exclude: ["password", "createdAt", "updatedAt"],
+      },
       order: [[sortByField, orderDirection]],
     });
 
