@@ -1,12 +1,12 @@
-import { getUsersList } from "@controllers/user.controller";
+import { getRolesList } from "@controllers/role.controller";
 import { validate } from "@middlewares/validate";
 import { Router } from "express";
 
 // Swagger documentation import
-import "@docs/users.docs";
+import "@docs/roles.doc";
 
 const router = Router();
 
-router.get("/", validate, getUsersList);
+router.get("/", validate, getRolesList);
 
 export default router;
