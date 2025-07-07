@@ -9,6 +9,7 @@ export const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🚀 Swagger docs at http://localhost:${PORT}/docs`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);

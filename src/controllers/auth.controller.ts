@@ -1,8 +1,13 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { User } from "@models/user.model";
-import { generateToken } from "@utils/jwt";
+import {
+  generateToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from "@utils/jwt";
 import { sendResponse } from "@utils/response";
+import { RefreshToken } from "@models/refreshToken.model";
 
 export const registerUser = async (req: Request, res: Response) => {
   try {
@@ -13,8 +18,8 @@ export const registerUser = async (req: Request, res: Response) => {
     if (alreadyRegisteredUser) {
       return sendResponse(res, 400, {
         success: false,
-        message: 'User already exists with this email.',
-      })
+        message: "User already exists with this email.",
+      });
     }
 
     // Hashing the password
@@ -27,19 +32,20 @@ export const registerUser = async (req: Request, res: Response) => {
     });
 
     // Respond with success (omit password in response)
-     return sendResponse(res, 201, {
-        success: true,
-        message: 'User registered successfully',
-        data: {
-            id: newUser.id,
-            email: newUser.email,
-        }
-      })
+    return sendResponse(res, 201, {
+      success: true,
+      message: "User registered successfully",
+      data: {
+        id: newUser.id,
+        email: newUser.email,
+      },
+    });
   } catch (error) {
-     return sendResponse(res, 500, {
+    return sendResponse(res, 500, {
       success: false,
       message: "Something went wrong.",
-      errors: process.env.NODE_ENV === "development" ? error.message : undefined,
+      errors:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -68,7 +74,16 @@ export const loginUser = async (req: Request, res: Response) => {
     }
 
     // 3. Generate JWT
-    const token = generateToken({ id: user.id, email: user.email });
+    const accessToken = generateToken({ id: user.id, email: user.email });
+    const refreshToken = signRefreshToken({ id: user.id, email: user.email });
+
+    await RefreshToken.create({ userId: user.id, token: refreshToken });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
 
     return sendResponse(res, 200, {
       success: true,
@@ -76,14 +91,79 @@ export const loginUser = async (req: Request, res: Response) => {
       data: {
         id: user.id,
         email: user.email,
-        token,
+        token: accessToken,
       },
     });
   } catch (error) {
     return sendResponse(res, 500, {
       success: false,
       message: "Something went wrong.",
-      errors: process.env.NODE_ENV === "development" ? error.message : undefined,
+      errors:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
+  }
+};
+
+export const refreshUserToken = async (req: Request, res: Response) => {
+  const refreshToken = req.cookies?.refreshToken;
+  if (!refreshToken) {
+    return sendResponse(res, 400, {
+      success: false,
+      message: "No token available",
+    });
+  }
+
+  try {
+    const decoded: any = verifyRefreshToken(refreshToken);
+
+    const stored = await RefreshToken.findOne({
+      where: { token: refreshToken },
+    });
+    if (!stored)
+      return res.status(403).json({ message: "Invalid refresh token" });
+
+    // Rotate token
+    await stored.destroy();
+    const newAccessToken = generateToken({ id: decoded.id });
+    const newRefreshToken = signRefreshToken({ id: decoded.id });
+
+    await RefreshToken.create({ userId: decoded.id, token: newRefreshToken });
+
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
+
+    res.json({ accessToken: newAccessToken });
+  } catch (err) {
+    return sendResponse(res, 400, {
+      success: false,
+      message: "Something went wrong.",
+      errors:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+export const logoutUser = async (req: Request, res: Response) => {
+  const refreshToken = req.cookies?.refreshToken;
+  if (!refreshToken) {
+    return sendResponse(res, 400, {
+      success: false,
+      message: "No token available",
+    });
+  }
+
+  try {
+    await RefreshToken.destroy({ where: { token: refreshToken } });
+    res.clearCookie("refreshToken");
+
+    return sendResponse(res, 200, {
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    return res.status(403).json({ message: "Refresh failed" });
   }
 };
