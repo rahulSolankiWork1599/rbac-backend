@@ -2,6 +2,9 @@ import { Router } from "express";
 import { validate } from "@middlewares/validate";
 import { createProject } from "@controllers/project.controller";
 
+// Swagger documentation import
+import "@docs/users.docs";
+
 const router = Router();
 
 router.post("/projects", validate, createProject);
